@@ -62,10 +62,10 @@
 
 int m = 0;
 //low range of the sensor (this will be blue on the screen)
-int MINTEMP = 10;
+int MINTEMP = 15;
 
 //high range of the sensor (this will be red on the screen)
-int MAXTEMP = 40;
+int MAXTEMP = 35;
 
 //the colors we will be using
 const uint16_t camColors[] = {0x480F,
@@ -144,35 +144,22 @@ void loop() {
   amg.readPixels(pixels);
   float maximumTemp = arrayMax(pixels, 0);
   float minimumTemp = arrayMin(pixels, maximumTemp);
-  //  int interpPixelCount = pow(GRIDSIZE,2);
-  //  for (long int i = 0; i < interpPixelCount; i++) {
-  //    int colorTemp;
-  //    int y = i % GRIDSIZE;
-  //    int x = i / GRIDSIZE;
-  //    float interpPixel;
-  //    if (i < (interpPixelCount - GRIDSIZE))
-  //    {
-  //      interpPixel = interp(pixels[i/GRIDSIZE], pixels[(i/GRIDSIZE)+1], pixels[(i/GRIDSIZE)+8], pixels[(i/GRIDSIZE)+9], GRIDSIZE, x, y);
-  //    }
-  //    else
-  //    {
-  //      interpPixel = interp(pixels[i/GRIDSIZE], pixels[(i/GRIDSIZE)+1], pixels[(i/GRIDSIZE)], pixels[(i/GRIDSIZE)+1], GRIDSIZE, x, y);
-  //    }
-  for (int i = 0; i < 64; i++)
+  for (int j = 0; j < 8; j++)
   {
-    int colorTemp;
-    //float interpPixel = interp(pixels[i/2], pixels[(i/2)+1], pixels[(i/2)+8], pixels[(i/2)+9], 2, i/15, i%15);
-    if (pixels[i] >= MAXTEMP) colorTemp = MAXTEMP;
-    else if (pixels[i] <= MINTEMP) colorTemp = MINTEMP;
-    else colorTemp = pixels[i];
+    for (int i = 0; i < 8; i++)
+    {
+      int colorTemp;
+      //float interpPixel = interp(pixels[i/2], pixels[(i/2)+1], pixels[(i/2)+8], pixels[(i/2)+9], 2, i/15, i%15);
+      if (pixels[8 * j + i] >= MAXTEMP) colorTemp = MAXTEMP;
+      else if (pixels[8 * j + i] <= MINTEMP) colorTemp = MINTEMP;
+      else colorTemp = pixels[8 * j + i];
 
-    uint8_t colorIndex = map(colorTemp, MINTEMP, MAXTEMP, 0, 255);
+      uint8_t colorIndex = map(colorTemp, MINTEMP, MAXTEMP, 0, 255);
 
-    colorIndex = constrain(colorIndex, 0, 255);
-    //draw the pixels!
-    //    tft.fillRect(displayPixelHeight * n, displayPixelWidth * (15 - m) + 30, displayPixelHeight, displayPixelWidth, camColors[colorIndex]);
-
-    tft.drawPixel(30 * i / 8, 270 - 30 * (i % 8), camColors[colorIndex]);
+      colorIndex = constrain(colorIndex, 0, 255);
+      tft.drawPixel(34*j, 280-34*i, camColors[colorIndex]);
+      //tft.fillCircle(34 * j, 280 - 34 * i, 8, camColors[colorIndex]);
+    }
   }
 
 #ifdef SHOW_TEMP_TEXT
@@ -181,18 +168,18 @@ void loop() {
   tft.setTextColor(ILI9341_WHITE);  tft.setTextSize(1);
   tft.print(pixels[i], 1);
 #endif
-  if (m % 30 == 0)
+  if (m % 5 == 0)
   {
-    tft.fillRect(0, 10, 240,20, ILI9341_BLACK);
+    tft.fillRect(0, 10, 240, 20, ILI9341_BLACK);
     tft.setCursor(0, 10);
     tft.setTextColor(ILI9341_WHITE);  tft.setTextSize(1);
-    tft.print(maximumTemp, 1);
-    tft.fillRect(0, 305, 240,20, ILI9341_BLACK);
+    tft.print(maximumTemp, 0);
+    tft.fillRect(0, 305, 240, 20, ILI9341_BLACK);
     tft.setCursor(0, 305);
-    tft.print(minimumTemp, 1);
-    tft.setCursor(3*tft.width()/4, 10);
-    tft.print(1000/duration,1);
-    tft.setCursor(3*tft.width()/4 - 25,10);
+    tft.print(minimumTemp, 0);
+    tft.setCursor(3 * tft.width() / 4, 10);
+    tft.print(1000 / duration, 1);
+    tft.setCursor(3 * tft.width() / 4 - 25, 10);
     tft.print("fps:");
   }
   m++;
