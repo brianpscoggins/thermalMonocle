@@ -24,6 +24,8 @@
 #include <Wire.h>
 #include <Adafruit_AMG88xx.h>
 
+#define GRIDSIZE 8
+
 #ifdef ESP8266
 #define STMPE_CS 16
 #define TFT_CS   0
@@ -58,11 +60,12 @@
 //Comment this out to remove the text overlay
 //#define SHOW_TEMP_TEXT
 
+int m = 0;
 //low range of the sensor (this will be blue on the screen)
-#define MINTEMP 22
+int MINTEMP = 10;
 
 //high range of the sensor (this will be red on the screen)
-#define MAXTEMP 29
+int MAXTEMP = 40;
 
 //the colors we will be using
 const uint16_t camColors[] = {0x480F,
@@ -103,7 +106,6 @@ uint16_t displayPixelWidth, displayPixelHeight;
 uint16_t gridSize;
 unsigned long oldTime = 0;
 unsigned long newTime;
-float interpPixels[225];
 
 void setup() {
   delay(500);
@@ -116,7 +118,7 @@ void setup() {
 
   displayPixelWidth = tft.width() / 15;
   displayPixelHeight = tft.width() / 15; //Keep pixels square
-  gridSize = tft.width()/7;
+  gridSize = tft.width() / 7;
 
   tft.setRotation(0);
 
@@ -135,48 +137,34 @@ void setup() {
 }
 
 void loop() {
+  newTime = millis();
+  int duration = newTime - oldTime;
+  oldTime = newTime;
   //read all the pixels
   amg.readPixels(pixels);
-  for (int m = 0; m < 15; m++)
+  float maximumTemp = arrayMax(pixels, 0);
+  float minimumTemp = arrayMin(pixels, maximumTemp);
+  //  int interpPixelCount = pow(GRIDSIZE,2);
+  //  for (long int i = 0; i < interpPixelCount; i++) {
+  //    int colorTemp;
+  //    int y = i % GRIDSIZE;
+  //    int x = i / GRIDSIZE;
+  //    float interpPixel;
+  //    if (i < (interpPixelCount - GRIDSIZE))
+  //    {
+  //      interpPixel = interp(pixels[i/GRIDSIZE], pixels[(i/GRIDSIZE)+1], pixels[(i/GRIDSIZE)+8], pixels[(i/GRIDSIZE)+9], GRIDSIZE, x, y);
+  //    }
+  //    else
+  //    {
+  //      interpPixel = interp(pixels[i/GRIDSIZE], pixels[(i/GRIDSIZE)+1], pixels[(i/GRIDSIZE)], pixels[(i/GRIDSIZE)+1], GRIDSIZE, x, y);
+  //    }
+  for (int i = 0; i < 64; i++)
   {
-    for (int n = 0; n < 15; n++)
-    {
-      if ((n == 0) || (n == 7))
-      {
-        if ((15 * n + m) % 2 == 0)
-        {
-          interpPixels[(15 * n) + m] = pixels[(m / 2) + 8 * (n / 2)];
-        }
-        else
-        {
-          interpPixels[(15 * n) + m] = (pixels[(m / 2) + 8 * (n / 2)] + pixels[(m / 2) + 8 * (n / 2) + 1]) / 2;
-        }
-      }
-      else if ((m == 0) || (m == 7))
-      {
-        if ((15 * n + m) % 2 == 0)
-        {
-          interpPixels[(15 * n) + m] = pixels[(m / 2) + 8 * (n / 2)];
-        }
-        else
-        {
-          interpPixels[(15 * n) + m] = (pixels[(m / 2) + 8 * (n / 2)] + pixels[(m / 2) + 8 * (n / 2) + 8]) / 2;
-        }
-      }
-      else
-      {
-        interpPixels[(15 * n) + m] = (pixels[(m / 2) + 8 * (n / 2)] + pixels[(m / 2) + 8 * (n / 2) + 1] + pixels[(m / 2) + 8 * (n / 2) + 8] + pixels[(m / 2) + 8 * (n / 2) + 9]) / 4;
-      }
-    }
-  }
-
-  for (int i = 0; i < 225; i++) {
     int colorTemp;
-    int y = i % 15;
-    int x = i / 15;
-    if (interpPixels[i] >= MAXTEMP) colorTemp = MAXTEMP;
-    else if (interpPixels[i] <= MINTEMP) colorTemp = MINTEMP;
-    else colorTemp = interpPixels[i];
+    //float interpPixel = interp(pixels[i/2], pixels[(i/2)+1], pixels[(i/2)+8], pixels[(i/2)+9], 2, i/15, i%15);
+    if (pixels[i] >= MAXTEMP) colorTemp = MAXTEMP;
+    else if (pixels[i] <= MINTEMP) colorTemp = MINTEMP;
+    else colorTemp = pixels[i];
 
     uint8_t colorIndex = map(colorTemp, MINTEMP, MAXTEMP, 0, 255);
 
@@ -184,23 +172,36 @@ void loop() {
     //draw the pixels!
     //    tft.fillRect(displayPixelHeight * n, displayPixelWidth * (15 - m) + 30, displayPixelHeight, displayPixelWidth, camColors[colorIndex]);
 
-    tft.drawPixel(2 * x, 280 - 2 * y, camColors[colorIndex]);
-    tft.drawPixel(2 * x - 1, 280 - 2 * y + 1, camColors[colorIndex]);
-    tft.drawPixel(2 * x, 280 - 2 * y + 1, camColors[colorIndex]);
-    tft.drawPixel(2 * x - 1, 280 - 2 * y, camColors[colorIndex]);
+    tft.drawPixel(30 * i / 8, 270 - 30 * (i % 8), camColors[colorIndex]);
+  }
 
 #ifdef SHOW_TEMP_TEXT
-    tft.setCursor( displayPixelHeight * floor(i / 8) + displayPixelHeight / 2 - 12,
-                   40 + displayPixelWidth * ((AMG88xx_PIXEL_ARRAY_SIZE - i - 1) % 8) + displayPixelHeight / 2 - 4);
-    tft.setTextColor(ILI9341_WHITE);  tft.setTextSize(1);
-    tft.print(pixels[i], 1);
+  tft.setCursor( displayPixelHeight * floor(i / 8) + displayPixelHeight / 2 - 12,
+                 40 + displayPixelWidth * ((AMG88xx_PIXEL_ARRAY_SIZE - i - 1) % 8) + displayPixelHeight / 2 - 4);
+  tft.setTextColor(ILI9341_WHITE);  tft.setTextSize(1);
+  tft.print(pixels[i], 1);
 #endif
-
+  if (m % 30 == 0)
+  {
+    tft.fillRect(0, 10, 240,20, ILI9341_BLACK);
+    tft.setCursor(0, 10);
+    tft.setTextColor(ILI9341_WHITE);  tft.setTextSize(1);
+    tft.print(maximumTemp, 1);
+    tft.fillRect(0, 305, 240,20, ILI9341_BLACK);
+    tft.setCursor(0, 305);
+    tft.print(minimumTemp, 1);
+    tft.setCursor(3*tft.width()/4, 10);
+    tft.print(1000/duration,1);
+    tft.setCursor(3*tft.width()/4 - 25,10);
+    tft.print("fps:");
   }
+  m++;
 }
+
 
 float interp(float v1, float v2, float v3, float v4, int grid, int x, int y)
 {
+  float value;
   //move the given pixel point inside a box defined by the 4 grid points
   if (x > grid)
   {
@@ -215,9 +216,57 @@ float interp(float v1, float v2, float v3, float v4, int grid, int x, int y)
   float dist2 = hypot((double)(grid - x), (double)y);
   float dist3 = hypot((double)x, (double)(grid - y));
   float dist4 = hypot((double)(grid - x), (double)(grid - y));
-  //average between the 4 points, weighting based on proximity to each grid point
-  float value = (dist1 + dist2 + dist3 + dist4) * ((v1 / dist1) + (v2 / dist2) + (v3 / dist3) + (v4 / dist4));
-  //return the averaged value
+  // the grid point coincides with a sensor reading, report the sensor reading
+  if (dist1 == 0)
+  {
+    value = v1;
+  }
+  else if (dist2 == 0)
+  {
+    value = v2;
+  }
+  else if (dist3 == 0)
+  {
+    value = v3;
+  }
+  else if (dist4 == 0)
+  {
+    value = v4;
+  }
+  else //otherwise interpolate between the 4 nearest neighbors
+  {
+    //average between the 4 points, weighting based on proximity to each grid point
+    value = (dist1 + dist2 + dist3 + dist4) * ((v1 / dist1) + (v2 / dist2) + (v3 / dist3) + (v4 / dist4));
+    //return the averaged value
+  }
+  Serial.println(value);
   return value;
+}
+
+float arrayMax(float inputArray[], int inputV)
+{
+  int max_v = inputV;
+
+  for ( int i = 0; i < sizeof(inputArray); i++ )
+  {
+    if ( inputArray[i] > max_v )
+    {
+      max_v = inputArray[i];
+    }
+  }
+  return max_v;
+}
+
+float arrayMin(float inputArray[], int inputV)
+{
+  int min_v = inputV;
+  for ( int i = 0; i < sizeof(inputArray); i++)
+  {
+    if ( inputArray[i] < min_v)
+    {
+      min_v = inputArray[i];
+    }
+  }
+  return min_v;
 }
 
